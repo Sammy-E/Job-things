@@ -1,0 +1,54 @@
+import requests
+from bs4 import BeautifulSoup
+import datetime
+
+# Scrape ces données à partir de cette URL
+url = 'https://teleconsultation.tessan.io/fr/france-FR/all'
+
+# Envoyer une rêquete GET 
+response = requests.get(url)
+soup = BeautifulSoup(response.text, 'lxml')
+
+# Fonction pour extraire les noms de pharmacies / opticiens
+def extract_pharmacies_and_opticians(soup):
+    pharmacies = []
+    # Trouver tous les éléments 'li' avec la classe 'indexes-all__element'
+    listings = soup.find_all('li', class_='indexes-all__element')
+
+    for listing in listings:
+        # Extraire le texte de la balise 'a' à l'intérieur de chaque balise 'li'
+        name = listing.find('a').text.strip()
+        pharmacies.append(name)
+    
+    return pharmacies
+
+# Extraire liste actuelle des pharmacies / opticiens
+current_pharmacies = extract_pharmacies_and_opticians(soup)
+
+# Enregistrer la liste actuelle dans un fichier pour une comparaison future (semaine par semaine)
+today = datetime.date.today()
+filename = f'pharmacies_{today}.txt'
+
+with open(filename, 'w') as file:
+    for pharmacy in current_pharmacies:
+        file.write(pharmacy + '\n')
+
+print(f"Pharmacies/Opticians for {today}:")
+print(current_pharmacies)
+
+# Charger les données de la semaine précédente à partir d'un fichier (si elles existent)
+previous_week_filename = f'pharmacies_{today - datetime.timedelta(days=7)}.txt'
+
+try:
+    with open(previous_week_filename, 'r') as file:
+        previous_pharmacies = file.read().splitlines()
+    
+    # Calculer les nouvelles additions (nouvelles pharmacies / opticiens qui n'étaient pas présentes la semaine précédent)
+    new_additions = list(set(current_pharmacies) - set(previous_pharmacies))
+    churns = list(set(previous_pharmacies) - set(current_pharmacies))
+
+    print(f"Nouvelles additions cette semaine: {new_additions}")
+    print(f"Churns cette semaine: {churns}")
+
+except FileNotFoundError:
+    print(f"Aucune donnée de la semaine dernière ({previous_week_filename}) à comparer.")
