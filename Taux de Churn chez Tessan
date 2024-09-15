@@ -57,7 +57,7 @@ try:
     else:
         churn_percent = 0
 
-    # Afficher les résultats en français
+    # Afficher les résultats
     print(f"Nouvelles additions cette semaine: {new_additions}")
     print(f"Churns cette semaine: {churns}")
     print(f"Nombre de nouvelles additions : {num_new_additions}")
