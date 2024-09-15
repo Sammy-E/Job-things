@@ -43,12 +43,27 @@ try:
     with open(previous_week_filename, 'r') as file:
         previous_pharmacies = file.read().splitlines()
     
-    # Calculer les nouvelles additions (nouvelles pharmacies / opticiens qui n'étaient pas présentes la semaine précédent)
+    # Calculer les nouvelles additions (nouvelles pharmacies / opticiens qui n'étaient pas présentes la semaine précédente)
     new_additions = list(set(current_pharmacies) - set(previous_pharmacies))
     churns = list(set(previous_pharmacies) - set(current_pharmacies))
 
+     # Calcul du nombre de nouvelles pharmacies / opticiens
+    num_new_additions = len(new_additions)
+    num_churns = len(churns)
+
+    # Calcul du pourcentage de churn
+    if len(previous_pharmacies) > 0:
+        churn_percent = (num_churns / len(previous_pharmacies)) * 100
+    else:
+        churn_percent = 0
+
+    # Afficher les résultats en français
     print(f"Nouvelles additions cette semaine: {new_additions}")
     print(f"Churns cette semaine: {churns}")
+    print(f"Nombre de nouvelles additions : {num_new_additions}")
+    print(f"Nombre de churns : {num_churns}")
+    print(f"Pourcentage de churn : {churn_percent:.2f}%")
 
+# Si les données de la semaine précédente n'existent pas
 except FileNotFoundError:
     print(f"Aucune donnée de la semaine dernière ({previous_week_filename}) à comparer.")
