@@ -1,0 +1,55 @@
+import requests
+from bs4 import BeautifulSoup
+import datetime
+
+# Scrape data from this URL
+url = 'https://www.mkleaderboards.com/mk8dx/global_rankings/overall?country=MX'
+
+# Send a GET request
+response = requests.get(url)
+soup = BeautifulSoup(response.text, 'lxml')
+
+# Function to extract player names
+def extract_player_names(soup):
+    players = []
+    # Assuming player names are in 'td' tags with a certain class
+    listings = soup.find_all('td', class_='left_align')
+
+    for listing in listings:
+        name = listing.text.strip()
+        players.append(name)
+    
+    return players
+
+# Extract current list of players
+current_players = extract_player_names(soup)
+
+# Get the current time (including hours)
+current_time = datetime.datetime.now()
+filename = f'players_{current_time.strftime("%Y-%m-%d_%H")}.txt'
+
+# Save the current list to a file for future comparison (hourly)
+with open(filename, 'w') as file:
+    for player in current_players:
+        file.write(player + '\n')
+
+print(f"Players for {current_time.strftime('%Y-%m-%d %H:%M')}:")
+print(current_players)
+
+# Load the data from the previous hour (if it exists)
+previous_hour_time = current_time - datetime.timedelta(hours=1)
+previous_hour_filename = f'players_{previous_hour_time.strftime("%Y-%m-%d_%H")}.txt'
+
+try:
+    with open(previous_hour_filename, 'r') as file:
+        previous_players = file.read().splitlines()
+    
+    # Calculate new additions (players not present in the previous hour)
+    new_additions = list(set(current_players) - set(previous_players))
+    churns = list(set(previous_players) - set(current_players))
+
+    print(f"New additions this hour: {new_additions}")
+    print(f"Churns this hour: {churns}")
+
+except FileNotFoundError:
+    print(f"No data from the previous hour ({previous_hour_filename}) to compare.")
