@@ -1,0 +1,68 @@
+import requests
+from bs4 import BeautifulSoup
+import datetime
+
+# Scrape data from this URL
+url = 'https://dashfight.com/ssbu/rankings?season=2024&region=na'
+
+# Send a GET request
+response = requests.get(url)
+soup = BeautifulSoup(response.text, 'lxml')
+
+# Function to extract player names
+def extract_player_names(soup):
+    players = []
+    # Assuming player names are in 'td' tags with a certain class
+    listings = soup.find_all('td', class_='RankingTableRow_item__DxuM_ RankingTableRow_players__TT5b2')
+
+    for listing in listings:
+        name = listing.text.strip()
+        players.append(name)
+    
+    return players
+
+# Extract current list of players
+current_players = extract_player_names(soup)
+
+# Get the current time (including hours)
+current_time = datetime.datetime.now()
+filename = f'players_{current_time.strftime("%Y-%m-%d_%H")}.txt'
+
+# Save the current list to a file for future comparison (hourly)
+with open(filename, 'w') as file:
+    for player in current_players:
+        file.write(player + '\n')
+
+print(f"Players for {current_time.strftime('%Y-%m-%d %H:%M')}:")
+print(current_players)
+
+# Load the data from the previous hour (if it exists)
+previous_hour_time = current_time - datetime.timedelta(hours=1)
+previous_hour_filename = f'players_{previous_hour_time.strftime("%Y-%m-%d_%H")}.txt'
+
+try:
+    with open(previous_hour_filename, 'r') as file:
+        previous_players = file.read().splitlines()
+    
+    # Calculate new additions (players not present in the previous hour)
+    new_additions = list(set(current_players) - set(previous_players))
+    churns = list(set(previous_players) - set(current_players)) 
+     # Calcul du nombre de nouveaux joueurs et de churns
+    num_new_additions = len(new_additions)
+    num_churns = len(churns)
+
+    # Calcul du pourcentage de churn
+    if len(previous_players) > 0:
+        churn_percent = (num_churns / len(previous_players)) * 100
+    else:
+        churn_percent = 0
+
+    # Afficher les résultats en français
+    print(f"Nouvelles additions cette heure : {new_additions}")
+    print(f"Churns cette heure : {churns}")
+    print(f"Nombre de nouvelles additions : {num_new_additions}")
+    print(f"Nombre de churns : {num_churns}")
+    print(f"Pourcentage de churn : {churn_percent:.2f}%")
+
+except FileNotFoundError:
+    print(f"No data from the previous hour ({previous_hour_filename}) to compare.")
