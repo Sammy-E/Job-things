@@ -1,0 +1,114 @@
+import requests
+from bs4 import BeautifulSoup
+import datetime
+import time
+
+# Scrape ces données à partir de cette URL
+BASE_URL = 'https://www.planity.com'
+CATEGORIES = ['coiffeur', 'barbier', 'manucure', 'massage', 'institut']
+
+headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+}
+
+# Envoyer une rêquete GET
+def get_soup(url):
+    res = requests.get(url, headers=headers)
+    return BeautifulSoup(res.text, 'html.parser')
+
+
+def extract_city_links(category):
+    url = f"{BASE_URL}/{category}/france"
+    soup = get_soup(url)
+    city_links = []
+    
+    for a in soup.select('a[href^="/' + category + '/france/"]'):
+        href = a.get('href')
+        if href.count('/') > 3:  # Avoid base category links
+            continue
+        full_link = BASE_URL + href
+        if full_link not in city_links:
+            city_links.append(full_link)
+    
+    return city_links
+
+# Fonction pour extraire les noms de salons
+def extract_listings_from_city_page(soup):
+    businesses = []
+    for div in soup.select('div[data-testid="search-list-item"]'):
+        name = div.get_text(strip=True)
+        businesses.append(name)
+    return businesses
+
+def scrape_category(category):
+    city_links = extract_city_links(category)
+    all_data = []
+
+    for city_url in city_links:
+        page = 1
+        while True:
+            paged_url = f"{city_url}?page={page}"
+            soup = get_soup(paged_url)
+            listings = extract_listings_from_city_page(soup)
+
+            if not listings:
+                break  # No more results
+
+            for listing in listings:
+                all_data.append((category, city_url.split('/')[-1], listing))
+            page += 1
+            time.sleep(1)  # Be polite with your requests
+    
+    return all_data
+
+# MAIN
+all_businesses = []
+for category in CATEGORIES:
+    print(f"Scraping category: {category}")
+    category_data = scrape_category(category)
+    all_businesses.extend(category_data)
+
+# Enregistrer la liste actuelle dans un fichier pour une comparaison future (semaine par semaine)
+today = datetime.date.today()
+filename = f'planity_listings_{today}.txt'
+
+with open(filename, 'w', encoding='utf-8') as f:
+    for cat, city, name in all_businesses:
+        f.write(f"{cat}\t{city}\t{name}\n")
+
+print(f"Saved {len(all_businesses)} entries to {filename}") 
+
+# Charger les données de la semaine précédente à partir d'un fichier (si elles existent)
+previous_week_filename = f'planity_listings_{today - datetime.timedelta(days=7)}.txt'
+
+try:
+    with open(previous_week_filename, 'r', encoding='utf-8') as file:
+        previous_entries = set(file.read().splitlines())
+    
+    current_entries = set([f"{cat}\t{city}\t{name}" for cat, city, name in all_businesses])
+
+    # Calculer les nouvelles additions
+    new_additions = list(current_entries - previous_entries)
+    churns = list(previous_entries - current_entries)
+
+    num_new_additions = len(new_additions)
+    num_churns = len(churns)
+
+    if len(previous_entries) > 0:
+        churn_percent = (num_churns / len(previous_entries)) * 100
+    else:
+        churn_percent = 0
+
+    # Afficher les résultats
+    print(f"Nouvelles additions cette semaine : {num_new_additions}")
+    for addition in new_additions:
+        print("  +", addition)
+
+    print(f"Churns cette semaine : {num_churns}")
+    for lost in churns:
+        print("  -", lost)
+
+    print(f"Pourcentage de churn : {churn_percent:.2f}%")
+
+except FileNotFoundError:
+    print(f"Aucune donnée de la semaine dernière ({previous_week_filename}) à comparer.")
